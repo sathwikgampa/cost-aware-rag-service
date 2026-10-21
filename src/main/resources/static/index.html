@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cost-Aware RAG Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 0 20px;
+            color: #1f2937;
+            background: #f3f4f6;
+        }
+
+        h1 {
+            margin-bottom: 6px;
+        }
+
+        .muted {
+            color: #6b7280;
+        }
+
+        section,
+        .card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        form {
+            display: flex;
+            gap: 10px;
+        }
+
+        input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 12px 18px;
+            border: 0;
+            border-radius: 6px;
+            background: #2563eb;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 14px;
+        }
+
+        .card {
+            margin: 0;
+        }
+
+        .label {
+            display: block;
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .value {
+            display: block;
+            margin-top: 8px;
+            font-size: 25px;
+            font-weight: bold;
+        }
+
+        #answer {
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Cost-Aware RAG Dashboard</h1>
+    <p class="muted">Local Ollama model, semantic retrieval, and Redis answer cache</p>
+
+    <section>
+        <h2>Ask a question</h2>
+        <form id="ask-form">
+            <input id="question" value="What is RAG?" required>
+            <button id="ask-button" type="submit">Ask</button>
+        </form>
+        <p id="answer" class="muted">Your answer will appear here.</p>
+    </section>
+
+    <section>
+        <h2>Usage metrics</h2>
+        <div class="grid">
+            <div class="card"><span class="label">Requests</span><strong class="value" id="totalRequests">0</strong>
+            </div>
+            <div class="card"><span class="label">Cache hit rate</span><strong class="value"
+                    id="cacheHitRate">0%</strong></div>
+            <div class="card"><span class="label">Cache hits / misses</span><strong class="value" id="cacheCounts">0 /
+                    0</strong></div>
+            <div class="card"><span class="label">Small / large model calls</span><strong class="value"
+                    id="modelCalls">0 / 0</strong></div>
+            <div class="card"><span class="label">Prompt / generated tokens</span><strong class="value" id="tokens">0 /
+                    0</strong></div>
+            <div class="card"><span class="label">Average request time</span><strong class="value" id="averageLatency">0
+                    ms</strong></div>
+        </div>
+        <p id="metrics-status" class="muted">Loading metrics…</p>
+    </section>
+
+    <script>
+        const form = document.getElementById("ask-form");
+        const button = document.getElementById("ask-button");
+
+        async function refreshMetrics() {
+            const status = document.getElementById("metrics-status");
+
+            try {
+                const response = await fetch("/api/metrics");
+                if (!response.ok) throw new Error("Metrics request failed");
+
+                const metrics = await response.json();
+
+                document.getElementById("totalRequests").textContent =
+                    metrics.totalRequests;
+                document.getElementById("cacheHitRate").textContent =
+                    metrics.cacheHitRatePercent.toFixed(1) + "%";
+                document.getElementById("cacheCounts").textContent =
+                    metrics.cacheHits + " / " + metrics.cacheMisses;
+                document.getElementById("modelCalls").textContent =
+                    metrics.smallModelCalls + " / " + metrics.largeModelCalls;
+                document.getElementById("tokens").textContent =
+                    metrics.totalPromptTokens + " / " + metrics.totalGeneratedTokens;
+                document.getElementById("averageLatency").textContent =
+                    metrics.averageLatencyMs.toFixed(1) + " ms";
+
+                status.textContent = "Metrics refresh every 2 seconds.";
+            } catch (error) {
+                status.textContent = "Could not load metrics. Is the app running?";
+            }
+        }
+
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            const question = document.getElementById("question").value.trim();
+            if (!question) return;
+
+            button.disabled = true;
+            button.textContent = "Asking…";
+            document.getElementById("answer").textContent = "Waiting for answer…";
+
+            try {
+                const response = await fetch(
+                    "/api/ask?question=" + encodeURIComponent(question)
+                );
+                if (!response.ok) throw new Error("Question request failed");
+
+                const result = await response.json();
+                const source = result.cacheHit
+                    ? "Redis semantic cache"
+                    : result.modelName;
+
+                document.getElementById("answer").textContent =
+                    result.answer
+                    + "\n\nSource: " + source
+                    + "\nRequest time: " + result.totalDurationMs + " ms";
+
+                await refreshMetrics();
+            } catch (error) {
+                document.getElementById("answer").textContent =
+                    "Could not get an answer. Check that the app is running.";
+            } finally {
+                button.disabled = false;
+                button.textContent = "Ask";
+            }
+        });
+
+        refreshMetrics();
+        setInterval(refreshMetrics, 2000);
+    </script>
+</body>
+
+</html>

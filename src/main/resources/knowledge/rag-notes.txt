@@ -1,0 +1,5 @@
+RAG means Retrieval-Augmented Generation. A RAG system retrieves relevant passages from documents and sends them to a language model as context.
+
+Semantic caching reuses a previous answer when a new question is close in meaning to a cached question. It uses embeddings to estimate similarity.
+
+Cost-aware routing chooses between language models based on request difficulty, expected answer quality, latency, and compute cost.
