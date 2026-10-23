@@ -1,0 +1,27 @@
+name: Generate Repository Social Preview Image
+
+on:
+  push:
+    branches:
+      - main  # Triggers the automation every time you push code to main
+
+jobs:
+  generate-og-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code Repository
+        uses: actions/checkout@v3
+
+      - name: Generate Dynamic Social Preview Image
+        uses: astra-intelligence/og-image-action@v1.0.0
+        with:
+          template: 'community'      # Uses GitHub's sleek developer layout template
+          output: 'og-image.png'     # Compiles and saves the new graphic file
+
+      - name: Commit and Save Image Asset to Repo
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add og-image.png
+          git commit -m "chore: auto-update repository social preview banner" || exit 0
+          git push
