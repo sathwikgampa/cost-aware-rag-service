@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main  # Triggers the automation every time you push code to main
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -13,7 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Generate Dynamic Social Preview Image
         uses: astra-intelligence/og-image-action@v1.0.0
@@ -27,4 +30,5 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add og-image.png
           git commit -m "chore: auto-update repository social preview banner" || exit 0
-          git push
+          git pull --rebase origin main
+          git push origin main
