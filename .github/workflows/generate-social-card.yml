@@ -5,6 +5,9 @@ on:
     branches:
       - main  # Triggers the automation every time you push code to main
 
+permissions:
+  contents: write
+
 jobs:
   generate-og-image:
     runs-on: ubuntu-latest
